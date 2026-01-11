@@ -3,13 +3,12 @@ package router
 import (
 	"net/http"
 
-	"github.com/gin-contrib/cors"
+	"github.com/faizan1191/auth-service/internal/auth"
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter() *gin.Engine {
+func SetupRouter(handler *auth.Handler) *gin.Engine {
 	r := gin.Default() // Create Gin router
-	r.Use(cors.Default())
 
 	// health check
 	r.GET("/health", func(c *gin.Context) {
@@ -17,6 +16,13 @@ func SetupRouter() *gin.Engine {
 			"status": "ok",
 		})
 	})
+
+	// group all routes so all start with auth/
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/signup", handler.Signup)
+		authGroup.POST("/login", handler.Login)
+	}
 
 	return r
 }
