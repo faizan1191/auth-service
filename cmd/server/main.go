@@ -39,7 +39,7 @@ func main() {
 	authHandler := auth.NewHandler(userRepo, redisClient)
 
 	// setup router with handlers
-	r := router.SetupRouter(authHandler)
+	r := router.SetupRouter(authHandler, redisClient)
 
 	log.Println("server running on port", cfg.Port)
 

@@ -2,14 +2,19 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/faizan1191/auth-service/internal/auth"
 	"github.com/faizan1191/auth-service/internal/middleware"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
-func SetupRouter(handler *auth.Handler) *gin.Engine {
+func SetupRouter(handler *auth.Handler, rdb *redis.Client) *gin.Engine {
 	r := gin.Default() // Create Gin router
+
+	// Global middleware
+	r.Use(middleware.RateLimiter(rdb, 10, time.Minute)) // 100 req/min globally
 
 	// health check
 	r.GET("/health", func(c *gin.Context) {
