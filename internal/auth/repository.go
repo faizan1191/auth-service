@@ -39,3 +39,23 @@ func (r *Repository) GetUserByEmail(email string) (*User, error) {
 	}
 	return user, nil
 }
+
+func (r *Repository) GetUserByID(userID string) (*User, error) {
+	user := &User{}
+
+	query := `
+	    SELECT id, email, password_hash, created_at
+		FROM users
+		WHERE id = $1
+	`
+	row := r.db.QueryRow(query, userID)
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.CreatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}

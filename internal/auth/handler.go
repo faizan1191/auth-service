@@ -1,19 +1,21 @@
 package auth
 
 import (
-	"fmt"
 	"net/http"
 
+	redisClient "github.com/faizan1191/auth-service/internal/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
 	repo *Repository
+	rdb  *redis.Client
 }
 
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo *Repository, rdb *redis.Client) *Handler {
+	return &Handler{repo: repo, rdb: rdb}
 }
 
 type LoginRequest struct {
@@ -73,8 +75,6 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("Login Email: ", req.Email)
-
 	if req.Email == "" || req.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "email and Password can't be empty"})
 		return
@@ -98,7 +98,63 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	accessToken, err := GenerateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate token"})
+	}
+
+	refreshToken := GenerateRefreshToken()
+	if err := redisClient.SetRefreshToken(h.rdb, refreshToken, user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store refresh token"})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "login successfull",
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
+}
+
+func GenerateRefreshToken() string {
+	return uuid.NewString()
+}
+
+func (h *Handler) Refresh(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	userID, err := redisClient.GetUserIDByRefreshToken(h.rdb, req.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	user, err := h.repo.GetUserByID(userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not find user"})
+	}
+
+	newAccessToken, err := GenerateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": newAccessToken,
+	})
+}
+
+func (h *Handler) Logout(c *gin.Context) {
+	refreshToken := c.GetHeader("X-Refresh-Token")
+	if err := redisClient.DeleteRefreshToken(h.rdb, refreshToken); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "logout unsuccessfull"})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }

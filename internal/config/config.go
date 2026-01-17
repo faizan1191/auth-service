@@ -14,7 +14,7 @@ func Load() *Config {
 		port = "8080"
 	}
 
-	dbUrl := os.Getenv("DATABASE_URL")
+	dbUrl := os.Getenv("POSTGRESQL_DATABASE_URL")
 
 	return &Config{
 		Port:        port,

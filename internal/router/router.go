@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/faizan1191/auth-service/internal/auth"
+	"github.com/faizan1191/auth-service/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,6 +23,20 @@ func SetupRouter(handler *auth.Handler) *gin.Engine {
 	{
 		authGroup.POST("/signup", handler.Signup)
 		authGroup.POST("/login", handler.Login)
+		authGroup.POST("/refresh", handler.Refresh)
+		authGroup.POST("/logout", handler.Logout)
+	}
+
+	// protected routes
+	protected := r.Group("/api")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.GET("/me", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"user_id": c.GetString("user_id"),
+				"email":   c.GetString("email"),
+			})
+		})
 	}
 
 	return r
