@@ -14,6 +14,7 @@ This project demonstrates real-world backend patterns such as secure password ha
 * Token refresh and logout
 * Protected routes using middleware
 * Rate Limiting
+* Reset Password Emails
 * Environment-based configuration
 
 ---
@@ -41,6 +42,7 @@ internal/
 ├── middleware/         # Auth, rate-limit, and other middleware
 ├── redis/              # Redis client and helpers
 └── router/             # HTTP route definitions
+└── email/              # Email Package (Client, Sender, Templates)
 ```
 
 
@@ -70,9 +72,18 @@ cd auth-service
 ## 2. Set environment variables
 
 ```bash
-export PORT=8080
-export JWT_SECRET=your_secret_key
-export POSTGRESQL_DATABASE_URL="postgres://<user>@localhost:5432/auth_service?sslmode=disable"
+# .env
+PORT=8080
+JWT_SECRET=your_secret_key
+BREVO_API_KEY=your_brevo_api_key
+POSTGRESQL_DATABASE_URL=postgres://user@host:5432/database?sslmode=disable
+REDIS_ADDR=localhost:6379
+SENDER_EMAIL=brevo_sender_email
+MAILTRAP_HOST=smtp.mailtrap.io
+MAILTRAP_PORT=587
+MAILTRAP_USER=user
+MAILTRAP_PASS=password
+MAILTRAP_FROM="no-reply@auth-service.com"
 ```
 
 ## 3. Create database and table
@@ -100,20 +111,39 @@ redis-server
 go run cmd/server/main.go
 ```
 
-## API Overview
-Public Endpoints
+## 📡 API Endpoints Overview
 
-POST /auth/signup
+This service exposes authentication and user-related APIs.  
+Endpoints are grouped into **public** and **protected** categories for clarity.
 
-POST /auth/login
+---
 
-POST /auth/refresh
+## 🔓 Public Endpoints
 
-POST /auth/logout
+These endpoints **do not require authentication**.
 
-GET /health
+| Method | Endpoint | Description |
+|------|---------|-------------|
+| `POST` | `/auth/signup` | Register a new user |
+| `POST` | `/auth/login` | Authenticate user and issue access & refresh tokens |
+| `POST` | `/auth/refresh` | Generate a new access token using a refresh token |
+| `POST` | `/auth/logout` | Invalidate refresh token |
+| `POST` | `/auth/forgot-password` | Send password reset link to user email |
+| `POST` | `/auth/reset-password` | Reset password using reset token |
+| `GET` | `/health` | Health check endpoint |
+---
 
-## Protected Endpoints
+## 🔐 Protected Endpoints
 
-GET /api/me
-Requires header: Authorization: Bearer <access_token>
+These endpoints **require a valid access token**.
+
+### Authorization Header
+
+```http
+Authorization: Bearer <access_token>
+```
+
+| Method | Endpoint | Description |
+|------|---------|-------------|
+| `GET` | `/api/me` | Get details of the currently authenticated user |
+---
