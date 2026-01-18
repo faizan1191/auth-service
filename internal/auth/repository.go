@@ -59,3 +59,12 @@ func (r *Repository) GetUserByID(userID string) (*User, error) {
 	}
 	return user, nil
 }
+
+func (r *Repository) UpdatePassword(userId, password string) error {
+	query := `
+		UPDATE users SET password_hash=$1
+		WHERE id=$2
+	`
+	_, err := r.db.Exec(query, password, userId)
+	return err
+}

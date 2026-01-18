@@ -31,6 +31,7 @@ func SetupRouter(handler *auth.Handler, rdb *redis.Client) *gin.Engine {
 		authGroup.POST("/refresh", handler.Refresh)
 		authGroup.POST("/logout", handler.Logout)
 		authGroup.POST("/forgot-password", handler.ForgotPassword)
+		authGroup.POST("/reset-password", handler.ResetPassword)
 	}
 
 	// protected routes

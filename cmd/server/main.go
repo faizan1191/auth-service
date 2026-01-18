@@ -38,7 +38,9 @@ func main() {
 		log.Fatal("Redis connection failed:", err)
 	}
 
-	emailClient := email.NewClient()
+	// emailClient := email.NewClient()
+	// emailSender := email.NewSender(emailClient)
+	emailClient := email.NewMailtrapClient()
 	emailSender := email.NewSender(emailClient)
 
 	// init handler with repo

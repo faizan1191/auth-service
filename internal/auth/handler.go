@@ -38,6 +38,11 @@ type ForgotRequest struct {
 	Email string `json:"email"`
 }
 
+type ResetRequest struct {
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
+
 func (h *Handler) Signup(c *gin.Context) {
 	var req SignupRequest
 
@@ -234,6 +239,42 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 		"message": "If the email exists, a reset link has been sent",
 	})
 
+}
+
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req ResetRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
+		return
+	}
+
+	if req.Token == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "both token and password are required"})
+		return
+	}
+
+	// 1. Get userID from Redis using token
+	userID, err := redisClient.ConsumeResetToken(h.rdb, req.Token)
+	if err != nil || userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or expired token"})
+		return
+	}
+
+	// 2. Hash new password
+	hashed, err := HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not hash password"})
+		return
+	}
+
+	// 3. Update user password in DB
+	if err := h.repo.UpdatePassword(userID, hashed); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
 }
 
 func GenerateResetToken() (string, error) {
