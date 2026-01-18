@@ -1,0 +1,32 @@
+package email
+
+import (
+	"fmt"
+	"net/smtp"
+	"os"
+)
+
+type Client struct {
+	host     string
+	port     string
+	username string
+	password string
+	from     string
+}
+
+func NewMailtrapClient() *Client {
+	return &Client{
+		host:     os.Getenv("MAILTRAP_HOST"),
+		port:     os.Getenv("MAILTRAP_PORT"),
+		username: os.Getenv("MAILTRAP_USER"),
+		password: os.Getenv("MAILTRAP_PASS"),
+		from:     os.Getenv("MAILTRAP_FROM"),
+	}
+}
+
+func (c *Client) Send(to, subject, body string) error {
+	auth := smtp.PlainAuth("", c.username, c.password, c.host)
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", c.from, to, subject, body)
+	addr := fmt.Sprintf("%s:%s", c.host, c.port)
+	return smtp.SendMail(addr, auth, c.from, []string{to}, []byte(msg))
+}

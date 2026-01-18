@@ -1,8 +1,13 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/faizan1191/auth-service/internal/email"
 	redisClient "github.com/faizan1191/auth-service/internal/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -10,12 +15,13 @@ import (
 )
 
 type Handler struct {
-	repo *Repository
-	rdb  *redis.Client
+	repo  *Repository
+	rdb   *redis.Client
+	email *email.Sender
 }
 
-func NewHandler(repo *Repository, rdb *redis.Client) *Handler {
-	return &Handler{repo: repo, rdb: rdb}
+func NewHandler(repo *Repository, rdb *redis.Client, email *email.Sender) *Handler {
+	return &Handler{repo: repo, rdb: rdb, email: email}
 }
 
 type LoginRequest struct {
@@ -26,6 +32,10 @@ type LoginRequest struct {
 type SignupRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type ForgotRequest struct {
+	Email string `json:"email"`
 }
 
 func (h *Handler) Signup(c *gin.Context) {
@@ -157,4 +167,80 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var req ForgotRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request payload"})
+		return
+	}
+
+	if req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email is required"})
+		return
+	}
+
+	user, err := h.repo.GetUserByEmail(req.Email)
+	if err != nil {
+		// real error → log it
+		log.Printf("forgot-password GetUserByEmail error: %v", err)
+
+		// still return generic response
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If the email exists, a reset link has been sent",
+		})
+		return
+	}
+
+	if user == nil {
+		// email does not exist → do nothing
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If the email exists, a reset link has been sent",
+		})
+		return
+	}
+
+	// create reset token
+	token, err := GenerateResetToken()
+	if err != nil {
+		log.Printf("forgot-password  GenerateResetToken error: %v", err)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If the email exists, a reset link has been sent",
+		})
+		return
+	}
+
+	// store token in redis
+	if err := redisClient.SetResetToken(h.rdb, token, user.ID); err != nil {
+		log.Printf("forgot-password  SetResetToken error: %v", err)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If the email exists, a reset link has been sent",
+		})
+		return
+	}
+
+	// send email to user
+	resetURL := fmt.Sprintf(
+		"http://localhost:8080/auth/reset-password?token=%s",
+		token,
+	)
+
+	if err = h.email.SendResetPassword(user.Email, resetURL); err != nil {
+		log.Printf("forgot-password SendResetPassword error: %v", err)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "If the email exists, a reset link has been sent",
+	})
+
+}
+
+func GenerateResetToken() (string, error) {
+	b := make([]byte, 32) // 256-bit
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

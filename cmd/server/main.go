@@ -9,12 +9,15 @@ import (
 	"github.com/faizan1191/auth-service/internal/auth"
 	"github.com/faizan1191/auth-service/internal/config"
 	"github.com/faizan1191/auth-service/internal/db"
+	"github.com/faizan1191/auth-service/internal/email"
 	"github.com/faizan1191/auth-service/internal/redis"
 	"github.com/faizan1191/auth-service/internal/router"
 )
 
 func main() {
-	_ = godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, reading environment variables from OS")
+	}
 
 	cfg := config.Load()
 
@@ -35,8 +38,11 @@ func main() {
 		log.Fatal("Redis connection failed:", err)
 	}
 
+	emailClient := email.NewClient()
+	emailSender := email.NewSender(emailClient)
+
 	// init handler with repo
-	authHandler := auth.NewHandler(userRepo, redisClient)
+	authHandler := auth.NewHandler(userRepo, redisClient, emailSender)
 
 	// setup router with handlers
 	r := router.SetupRouter(authHandler, redisClient)
