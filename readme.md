@@ -7,39 +7,41 @@ This project demonstrates real-world backend patterns such as secure password ha
 
 ## Features
 
-- User signup and login
-- Password hashing with bcrypt
-- JWT access tokens
-- Refresh tokens stored and managed in Redis
-- Token refresh and logout
-- Protected routes using middleware
-- Rate Limiting
-- Environment-based configuration
+* User signup and login
+* Password hashing with bcrypt
+* JWT access tokens
+* Refresh tokens stored and managed in Redis
+* Token refresh and logout
+* Protected routes using middleware
+* Rate Limiting
+* Environment-based configuration
 
 ---
 
 ## Tech Stack
 
-- Go
-- Gin
-- PostgreSQL
-- Redis
-- JWT
-- bcrypt
+* **Go**
+* **Gin**
+* **PostgreSQL**
+* **Redis**
+* **JWT**
+* **bcrypt**
 
 ---
 
 ## Project Structure
 
-cmd/server/
-└── main.go # Application entrypoint
-
+```text
+cmd/
+└── server/
+    └── main.go         # Application entrypoint
 internal/
-├── auth/ # Auth domain (handlers, repository, models, JWT)
-├── config/ # Application configuration
-├── middleware/ # Auth, rate-limit, and other middleware
-├── redis/ # Redis client and helpers
-└── router/ # HTTP route definitions
+├── auth/               # Auth domain (handlers, repository, models, JWT)
+├── config/             # Application configuration
+├── middleware/         # Auth, rate-limit, and other middleware
+├── redis/              # Redis client and helpers
+└── router/             # HTTP route definitions
+```
 
 
 
@@ -63,6 +65,7 @@ Each domain owns its logic (handlers + repository + models), keeping the codebas
 ```bash
 git clone https://github.com/faizan1191/auth-service.git
 cd auth-service
+```
 
 ## 2. Set environment variables
 
@@ -70,6 +73,7 @@ cd auth-service
 export PORT=8080
 export JWT_SECRET=your_secret_key
 export POSTGRESQL_DATABASE_URL="postgres://<user>@localhost:5432/auth_service?sslmode=disable"
+```
 
 ## 3. Create database and table
 
@@ -82,17 +86,19 @@ CREATE TABLE users (
   password_hash TEXT NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
+```
 
 ## 4. Start Redis
 
 ```bash
 redis-server
+```
 
 ## 5. Run the application
 
 ```bash
 go run cmd/server/main.go
+```
 
 ## API Overview
 Public Endpoints
